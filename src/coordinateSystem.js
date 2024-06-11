@@ -60,9 +60,27 @@ function createCoordinateSystem(ctx) {
   ctx.fillText(0, PADDING - 12, canvas.height - PADDING + 12) // 原点坐标
 }
 
+function logicXToRealX(x) {
+  return PADDING + xInterval * (Math.floor(x / 100) + x % 100 / 100) 
+}
+
+function logicYToRealY(y) {
+  return canvas.height - PADDING - yInterval * (Math.floor(y / 100) + y % 100 / 100)
+}
+
+function realXToLogicX(x) {
+  return x / xInterval * 100
+}
+
+function realYToLogicY(y) {
+  return y / yInterval * 100
+}
+
 export { 
   PADDING,
-  xInterval,
-  yInterval,
+  logicXToRealX,
+  logicYToRealY,
+  realXToLogicX,
+  realYToLogicY,
   createCoordinateSystem
 }

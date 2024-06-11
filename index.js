@@ -60,21 +60,12 @@ function createCoordinateSystem(ctx) {
   ctx.fillText(0, PADDING - 12, canvas.height - PADDING + 12); // 原点坐标
 }
 
-let canvas$1 = document.getElementById('canvas');
-let ctx = canvas$1.getContext('2d');
-let currentCurve = ''; // 保留，在选中线段时使用
-
-
-
-
-createCoordinateSystem(ctx);
-
 function logicXToRealX(x) {
   return PADDING + xInterval * (Math.floor(x / 100) + x % 100 / 100) 
 }
 
 function logicYToRealY(y) {
-  return canvas$1.height - PADDING - yInterval * (Math.floor(y / 100) + y % 100 / 100)
+  return canvas.height - PADDING - yInterval * (Math.floor(y / 100) + y % 100 / 100)
 }
 
 function realXToLogicX(x) {
@@ -85,50 +76,6 @@ function realYToLogicY(y) {
   return y / yInterval * 100
 }
 
-let demandCurve = {
-  name: 'demand',
-  start: { x: 200, y: 400 },
-  end: { x: 600, y: 100 },
-  equation: lineFormula({x: 200, y: 400}, {x: 600, y: 100}),
-  width: 600 - 200,
-  create() {
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(logicXToRealX(this.start.x), logicYToRealY(this.start.y));
-    ctx.lineTo(logicXToRealX(this.end.x), logicYToRealY(this.end.y));
-    ctx.lineWidth = "2";
-    if (currentCurve.name == this.name) {
-      ctx.strokeStyle = '#ffc107';
-    }
-    ctx.stroke();
-    ctx.closePath();
-    ctx.restore();
-  }
-};
-demandCurve.create();
-
-let supplyCurve = {
-  name: 'supply',
-  start: { x: 200, y: 100 },
-  end: { x: 600, y: 400 },
-  equation: lineFormula({ x: 200, y: 100 }, { x: 600, y: 400 }),
-  width: 600 - 200,
-  create() {
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(logicXToRealX(this.start.x), logicYToRealY(this.start.y));
-    ctx.lineTo(logicXToRealX(this.end.x), logicYToRealY(this.end.y));
-    ctx.lineWidth = "2";
-    if (currentCurve.name == this.name) {
-      ctx.strokeStyle = '#ffc107';
-    }
-    ctx.stroke();
-    ctx.closePath();
-    ctx.restore();
-  }
-};
-supplyCurve.create();
-
 function distanceOf(curve, x, y) {
   return Math.abs(curve[0] * x + curve[1] * y + curve[2]) / Math.sqrt(curve[0]**2 + curve[1]**2)
 }
@@ -136,6 +83,74 @@ function distanceOf(curve, x, y) {
 function lineFormula(point1, point2) {
   return [point1.y - point2.y, point2.x - point1.x, point1.x * point2.y - point2.x * point1.y]
 }
+
+function calculateIntersection(line1, line2) {
+  let [a, b] = line1;
+  let [c, d] = line2;
+  let m = -line1[2];
+  let n = -line2[2];
+  let x = (m * d - n * b) / (a * d - b * c);
+  let y = (a * n - m * c) / (a * d - b * c);
+  return {x, y}
+}
+
+let demandCurve = {
+  name: 'demand',
+  start: { x: 200, y: 400 },
+  end: { x: 600, y: 100 },
+  equation: lineFormula({x: 200, y: 400}, {x: 600, y: 100}),
+  width: 600 - 200,
+  create(ctx, currentCurve) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(logicXToRealX(this.start.x), logicYToRealY(this.start.y));
+    ctx.lineTo(logicXToRealX(this.end.x), logicYToRealY(this.end.y));
+    ctx.lineWidth = "2";
+    if (currentCurve.name == this.name) {
+      ctx.strokeStyle = '#ffc107';
+    }
+    ctx.stroke();
+    ctx.closePath();
+    ctx.restore();
+  }
+};
+
+let supplyCurve = {
+  name: 'supply',
+  start: { x: 200, y: 100 },
+  end: { x: 600, y: 400 },
+  equation: lineFormula({ x: 200, y: 100 }, { x: 600, y: 400 }),
+  width: 600 - 200,
+  create(ctx, currentCurve) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(logicXToRealX(this.start.x), logicYToRealY(this.start.y));
+    ctx.lineTo(logicXToRealX(this.end.x), logicYToRealY(this.end.y));
+    ctx.lineWidth = "2";
+    if (currentCurve.name == this.name) {
+      ctx.strokeStyle = '#ffc107';
+    }
+    ctx.stroke();
+    ctx.closePath();
+    ctx.restore();
+  }
+};
+
+let canvas$1 = document.getElementById('canvas');
+let ctx = canvas$1.getContext('2d');
+let currentCurve = ''; // 保留，在选中线段时使用
+createCoordinateSystem(ctx);
+
+
+
+demandCurve.create(ctx, currentCurve);
+
+
+supplyCurve.create(ctx, currentCurve);
+
+
+
+
 let isMousedown = false;
 let lastX = 0;
 let rect = canvas$1.getBoundingClientRect();
@@ -152,22 +167,22 @@ canvas$1.addEventListener('mousedown', (e) => {
       createCoordinateSystem(ctx);
       ctx.save();
       ctx.strokeStyle = '#ffc107';
-      demandCurve.create();
+      demandCurve.create(ctx, currentCurve);
       ctx.restore();
-      supplyCurve.create();
+      supplyCurve.create(ctx, currentCurve);
     }
 
     if (supplyCurveDistance < 25 && demandCurveDistance >= 25) {
       currentCurve = supplyCurve;
       ctx.clearRect(0, 0, 600, 300);
       createCoordinateSystem(ctx);
-      demandCurve.create();
+      demandCurve.create(ctx, currentCurve);
       ctx.save();
       ctx.strokeStyle = '#ffc107';
-      supplyCurve.create();
+      supplyCurve.create(ctx, currentCurve);
       ctx.restore();
     }
-    drawIntersection(calculateIntersection());
+    drawIntersection(calculateIntersection(demandCurve.equation, supplyCurve.equation));
 
     if (currentCurve == '') reutrn; 
     isMousedown = true;
@@ -195,29 +210,20 @@ canvas$1.addEventListener("mousemove", function(e) {
 
     currentCurve.equation = lineFormula(currentCurve.start, currentCurve.end);
 
-    demandCurve.create();
-    supplyCurve.create();
-    drawIntersection(calculateIntersection());
+    demandCurve.create(ctx, currentCurve);
+    supplyCurve.create(ctx, currentCurve);
+    drawIntersection(calculateIntersection(demandCurve.equation, supplyCurve.equation));
   }
 );
 
 canvas$1.addEventListener("mouseup", function(e) {
   isMousedown = false;
   currentCurve = ''; 
-  demandCurve.create();
-  supplyCurve.create();
-  drawIntersection(calculateIntersection());
+  demandCurve.create(ctx, currentCurve);
+  supplyCurve.create(ctx, currentCurve);
+  drawIntersection(calculateIntersection(demandCurve.equation, supplyCurve.equation));
 });
 
-function calculateIntersection() {
-  let [a, b] = demandCurve.equation;
-  let [c, d] = supplyCurve.equation;
-  let m = -demandCurve.equation[2];
-  let n = -supplyCurve.equation[2];
-  let x = (m * d - n * b) / (a * d - b * c);
-  let y = (a * n - m * c) / (a * d - b * c);
-  return {x, y}
-}
 
 function drawIntersection(point) {
   const x = logicXToRealX(point.x);
@@ -241,4 +247,4 @@ function drawIntersection(point) {
   ctx.fillText(point.y.toFixed(2), PADDING, y);
   ctx.restore();
 }
-drawIntersection(calculateIntersection());
+drawIntersection(calculateIntersection(demandCurve.equation, supplyCurve.equation));
