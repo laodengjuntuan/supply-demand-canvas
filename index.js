@@ -141,74 +141,6 @@ let supplyCurve = {
 let isMousedown = false;
 let lastX = 0;
 
-function handleMousedown({ ctx, rect }, e) {
-  // 由于鼠标的坐标位置并不是从canvas的左上角为起点开始计算的，而是从页面的左上角，因此计算时还要考虑到canvas画布位于页面中的位置。
-  let x = realXToLogicX(e.clientX - rect.left - PADDING);
-  let y = realYToLogicY(canvas.height + rect.top - PADDING - e.clientY);
-  const demandCurveDistance = distanceOf(demandCurve.equation, x, y);
-  const supplyCurveDistance = distanceOf(supplyCurve.equation, x, y);
-
-  if (demandCurveDistance < 25) { // 设判定范围为25
-    currentCurve = demandCurve;
-    ctx.clearRect(0, 0, 600, 300);
-    createCoordinateSystem(ctx);
-    ctx.save();
-    ctx.strokeStyle = '#ffc107';
-    demandCurve.create(ctx, currentCurve);
-    ctx.restore();
-    supplyCurve.create(ctx, currentCurve);
-  }
-
-  if (supplyCurveDistance < 25 && demandCurveDistance >= 25) {
-    currentCurve = supplyCurve;
-    ctx.clearRect(0, 0, 600, 300);
-    createCoordinateSystem(ctx);
-    demandCurve.create(ctx, currentCurve);
-    ctx.save();
-    ctx.strokeStyle = '#ffc107';
-    supplyCurve.create(ctx, currentCurve);
-    ctx.restore();
-  }
-  drawIntersection(calculateIntersection(demandCurve.equation, supplyCurve.equation), ctx);
-
-  if (currentCurve == '') reutrn; 
-  isMousedown = true;
-  lastX = e.clientX;
-}
-
-function handleMousemove({ ctx }, e) {
-  if (!isMousedown) return
-  ctx.clearRect(0, 0, 600, 300);
-  createCoordinateSystem(ctx);
-
-  currentCurve.start.x += realXToLogicX(e.clientX - lastX);
-  currentCurve.end.x += realXToLogicX(e.clientX - lastX);
-  lastX = e.clientX;
-
-  if (currentCurve.start.x <= 100) {
-    currentCurve.start.x = 100;
-    currentCurve.end.x = 100 + currentCurve.width;
-  }
-
-  if (currentCurve.end.x >= 700) {
-    currentCurve.end.x = 700;
-    currentCurve.start.x = 700 - currentCurve.width;
-  }
-
-  currentCurve.equation = lineFormula(currentCurve.start, currentCurve.end);
-
-  demandCurve.create(ctx, currentCurve);
-  supplyCurve.create(ctx, currentCurve);
-  drawIntersection(calculateIntersection(demandCurve.equation, supplyCurve.equation), ctx);
-}
-
-function handleMouseup({ ctx }, e) {
-  isMousedown = false;
-  currentCurve = ''; 
-  demandCurve.create(ctx, currentCurve);
-  supplyCurve.create(ctx, currentCurve);
-  drawIntersection(calculateIntersection(demandCurve.equation, supplyCurve.equation), ctx);
-}
 function drawIntersection(point, ctx) {
   const x = logicXToRealX(point.x);
   const y = logicYToRealY(point.y);
@@ -232,32 +164,94 @@ function drawIntersection(point, ctx) {
   ctx.restore();
 }
 class NormalSupplyDemand {
-  constructor(canvas, ctx){
+  constructor() {
+    let canvas = document.getElementById('canvas');
+    let ctx = canvas.getContext('2d');
     this.canvas = canvas;
     this.ctx = ctx;
     this.rect = canvas.getBoundingClientRect();
   }
   init() {
-    createCoordinateSystem(this.ctx);
-    demandCurve.create(this.ctx, currentCurve);
-    supplyCurve.create(this.ctx, currentCurve);
-    let options = {
-      ctx: this.ctx,
-      rect: this.rect
-    };
-    this.canvas.addEventListener('mousedown', e => handleMousedown(options, e));
-    this.canvas.addEventListener('mousemove', e => handleMousemove(options, e));
-    this.canvas.addEventListener('mouseup', e => handleMouseup(options));
-    drawIntersection(calculateIntersection(demandCurve.equation, supplyCurve.equation), options.ctx);
+    let ctx = this.ctx;
+    createCoordinateSystem(ctx);
+    demandCurve.create(ctx, currentCurve);
+    supplyCurve.create(ctx, currentCurve);
+    
+    this.canvas.addEventListener('mousedown', e => this.handleMousedown(e));
+    this.canvas.addEventListener('mousemove', e => this.handleMousemove(e));
+    this.canvas.addEventListener('mouseup', e => this.handleMouseup(e));
+    drawIntersection(calculateIntersection(demandCurve.equation, supplyCurve.equation), ctx);
+  }
+  handleMousedown(e) {
+    // 由于鼠标的坐标位置并不是从canvas的左上角为起点开始计算的，而是从页面的左上角，因此计算时还要考虑到canvas画布位于页面中的位置。
+    let ctx = this.ctx;
+    let x = realXToLogicX(e.clientX - this.rect.left - PADDING);
+    let y = realYToLogicY(canvas.height + this.rect.top - PADDING - e.clientY);
+    const demandCurveDistance = distanceOf(demandCurve.equation, x, y);
+    const supplyCurveDistance = distanceOf(supplyCurve.equation, x, y);
+
+    if (demandCurveDistance < 25) { // 设判定范围为25
+      currentCurve = demandCurve;
+      ctx.clearRect(0, 0, 600, 300);
+      createCoordinateSystem(ctx);
+      ctx.save();
+      ctx.strokeStyle = '#ffc107';
+      demandCurve.create(ctx, currentCurve);
+      ctx.restore();
+      supplyCurve.create(ctx, currentCurve);
+      drawIntersection(calculateIntersection(demandCurve.equation, supplyCurve.equation), ctx);
+    }
+
+    if (supplyCurveDistance < 25 && demandCurveDistance >= 25) {
+      currentCurve = supplyCurve;
+      ctx.clearRect(0, 0, 600, 300);
+      createCoordinateSystem(ctx);
+      demandCurve.create(ctx, currentCurve);
+      ctx.save();
+      ctx.strokeStyle = '#ffc107';
+      supplyCurve.create(ctx, currentCurve);
+      ctx.restore();
+      drawIntersection(calculateIntersection(demandCurve.equation, supplyCurve.equation), ctx);
+    }
+
+    if (currentCurve == '') return
+    isMousedown = true;
+    lastX = e.clientX;
+  }
+  handleMousemove(e) {
+    if (!isMousedown) return
+    let ctx = this.ctx;
+    ctx.clearRect(0, 0, 600, 300);
+    createCoordinateSystem(ctx);
+  
+    currentCurve.start.x += realXToLogicX(e.clientX - lastX);
+    currentCurve.end.x += realXToLogicX(e.clientX - lastX);
+    lastX = e.clientX;
+  
+    if (currentCurve.start.x <= 100) {
+      currentCurve.start.x = 100;
+      currentCurve.end.x = 100 + currentCurve.width;
+    }
+  
+    if (currentCurve.end.x >= 700) {
+      currentCurve.end.x = 700;
+      currentCurve.start.x = 700 - currentCurve.width;
+    }
+  
+    currentCurve.equation = lineFormula(currentCurve.start, currentCurve.end);
+  
+    demandCurve.create(ctx, currentCurve);
+    supplyCurve.create(ctx, currentCurve);
+    drawIntersection(calculateIntersection(demandCurve.equation, supplyCurve.equation), ctx);
+  }
+  handleMouseup(e) {
+    if (!isMousedown) return 
+    let ctx = this.ctx;
+    isMousedown = false;
+    currentCurve = ''; 
+    demandCurve.create(ctx, currentCurve);
+    supplyCurve.create(ctx, currentCurve);
   }
 }
 
-let canvas$1 = document.getElementById('canvas');
-let ctx = canvas$1.getContext('2d');
-
-
-
-
-
-
-new NormalSupplyDemand(canvas$1, ctx).init();
+new NormalSupplyDemand().init();
