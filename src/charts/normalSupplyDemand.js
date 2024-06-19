@@ -11,14 +11,17 @@ import { distanceOf, lineFormula, calculateIntersection } from '../utils'
 
 const SELECT_RANGE = 25
 
-let demandCurve = {
-  name: 'demand',
-  start: { x: 200, y: 400 },
-  end: { x: 600, y: 100 },
-  equation: lineFormula({x: 200, y: 400}, {x: 600, y: 100}),
-  width: 600 - 200,
-  isSelect: false,
-  create(ctx, offset = {start: 0, end: 0}) {
+// usage: new Line({x: ,y: }, {x: , y: })
+class Line {
+  constructor(start, end) {
+    this.start = start
+    this.end = end
+    this.equation = lineFormula(start, end)
+    this.width = end.x - start.x
+    this.isSelect = false
+  }
+  create(offset = {start: 0, end: 0}) {  // ctx通过原型链来拿
+    let ctx = this.ctx
     ctx.save()
     ctx.beginPath()
     ctx.lineWidth = "2"
@@ -45,92 +48,54 @@ let demandCurve = {
   }
 }
 
-let supplyCurve = {
-  name: 'supply',
-  start: { x: 200, y: 100 },
-  end: { x: 600, y: 400 },
-  equation: lineFormula({ x: 200, y: 100 }, { x: 600, y: 400 }),
-  width: 600 - 200,
-  isSelect: false,
-  create(ctx, offset = {start: 0, end: 0}) {
-    ctx.save()
-    ctx.beginPath()
-    ctx.lineWidth = "2"
-    if (this.isSelect) {
-      ctx.strokeStyle = '#ffc107'
-      this.start.x += offset.start
-      this.end.x += offset.end
-      if (this.start.x <= 100) {
-        this.start.x = 100
-        this.end.x = 100 + this.width
-      }
-    
-      if (this.end.x >= 700) {
-        this.end.x = 700
-        this.start.x = 700 - this.width
-      }
-      this.equation = lineFormula(this.start, this.end)
-    }
-    
-    ctx.moveTo(logicXToRealX(this.start.x), logicYToRealY(this.start.y))
-    ctx.lineTo(logicXToRealX(this.end.x), logicYToRealY(this.end.y))
-    ctx.stroke()
-    ctx.closePath()
-    ctx.restore()
-  }
-}
 class NormalSupplyDemand {
   constructor() {
-    this.canvas = document.getElementById('canvas')
-    this.ctx = this.canvas.getContext('2d')
+    let canvas = document.getElementById('canvas')
+    let ctx = canvas.getContext('2d')
+    this.canvas = canvas
+    this.ctx = ctx
     this.rect = canvas.getBoundingClientRect()
     this.lastX = 0
     this.isMousedown = false
+    Line.prototype.ctx = ctx
+    this.demandCurve = new Line({ x: 200, y: 400 }, { x: 600, y: 100 })
+    this.supplyCurve = new Line({ x: 200, y: 100 }, { x: 600, y: 400 })
   }
   init() {
     let ctx = this.ctx
     createCoordinateSystem(ctx)
-    demandCurve.create(ctx)
-    supplyCurve.create(ctx)
+
+    this.demandCurve.create()
+    this.supplyCurve.create()
     
     this.canvas.addEventListener('mousedown', e => this.handleMousedown(e))
     this.canvas.addEventListener('mousemove', e => this.handleMousemove(e))
     this.canvas.addEventListener('mouseup', e => this.handleMouseup(e))
-    this.drawIntersection(calculateIntersection(demandCurve.equation, supplyCurve.equation))
+    this.drawIntersection(calculateIntersection(this.demandCurve.equation, this.supplyCurve.equation))
   }
   handleMousedown(e) {
     // 由于鼠标的坐标位置并不是从canvas的左上角为起点开始计算的，而是从页面的左上角，因此计算时还要考虑到canvas画布位于页面中的位置。
-    let ctx = this.ctx
     let x = realXToLogicX(e.clientX - this.rect.left - PADDING)
     let y = realYToLogicY(canvas.height + this.rect.top - PADDING - e.clientY)
-    const demandCurveDistance = distanceOf(demandCurve.equation, x, y)
-    const supplyCurveDistance = distanceOf(supplyCurve.equation, x, y)
+    const demandCurveDistance = distanceOf(this.demandCurve.equation, x, y)
+    const supplyCurveDistance = distanceOf(this.supplyCurve.equation, x, y)
 
     // 选中需求曲线
     if (demandCurveDistance < SELECT_RANGE) {
-      demandCurve.isSelect = true
-      this.repaintCoordinateSystem()
-      ctx.save()
-      ctx.strokeStyle = '#ffc107'
-      demandCurve.create(ctx)
-      ctx.restore()
-      supplyCurve.create(ctx)
-      this.drawIntersection(calculateIntersection(demandCurve.equation, supplyCurve.equation))
+      this.demandCurve.isSelect = true
     }
     
     // 选中供给曲线
     if (supplyCurveDistance < SELECT_RANGE && demandCurveDistance >= SELECT_RANGE) {
-      supplyCurve.isSelect = true
-      this.repaintCoordinateSystem()
-      demandCurve.create(ctx)
-      ctx.save()
-      ctx.strokeStyle = '#ffc107'
-      supplyCurve.create(ctx)
-      ctx.restore()
-      this.drawIntersection(calculateIntersection(demandCurve.equation, supplyCurve.equation))
+      this.supplyCurve.isSelect = true
     }
 
-    if (supplyCurve.isSelect || demandCurve.isSelect) {
+    this.repaintCoordinateSystem()
+    this.demandCurve.create()
+    this.supplyCurve.create()
+    this.drawIntersection(calculateIntersection(this.demandCurve.equation, this.supplyCurve.equation))
+
+    if (this.supplyCurve.isSelect || this.demandCurve.isSelect) {
       this.isMousedown = true
       this.lastX = e.clientX
     }
@@ -138,7 +103,6 @@ class NormalSupplyDemand {
   }
   handleMousemove(e) {
     if (!this.isMousedown) return
-    let ctx = this.ctx
 
     this.repaintCoordinateSystem()
     let offsetX = realXToLogicX(e.clientX - this.lastX)
@@ -147,19 +111,18 @@ class NormalSupplyDemand {
       start: offsetX,
       end: offsetX
     }
-    demandCurve.create(ctx, offset)
-    supplyCurve.create(ctx, offset)
+    this.demandCurve.create(offset)
+    this.supplyCurve.create(offset)
     this.lastX = e.clientX
-    this.drawIntersection(calculateIntersection(demandCurve.equation, supplyCurve.equation))
+    this.drawIntersection(calculateIntersection(this.demandCurve.equation, this.supplyCurve.equation))
   }
   handleMouseup(e) {
     if (!this.isMousedown) return 
-    let ctx = this.ctx
     this.isMousedown = false
-    demandCurve.isSelect = false
-    supplyCurve.isSelect = false
-    demandCurve.create(ctx)
-    supplyCurve.create(ctx)
+    this.demandCurve.isSelect = false
+    this.supplyCurve.isSelect = false
+    this.demandCurve.create()
+    this.supplyCurve.create()
   }
   drawIntersection(point) {
     const x = logicXToRealX(point.x)
