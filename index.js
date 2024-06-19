@@ -105,25 +105,13 @@ class Line {
     this.width = end.x - start.x;
     this.isSelect = false;
   }
-  create(offset = {start: 0, end: 0}) {  // ctx通过原型链来拿
+  create() {  // ctx通过原型链来拿
     let ctx = this.ctx;
     ctx.save();
     ctx.beginPath();
     ctx.lineWidth = "2";
     if (this.isSelect) {
       ctx.strokeStyle = '#ffc107';
-      this.start.x += offset.start;
-      this.end.x += offset.end;
-      if (this.start.x <= 100) {
-        this.start.x = 100;
-        this.end.x = 100 + this.width;
-      }
-    
-      if (this.end.x >= 700) {
-        this.end.x = 700;
-        this.start.x = 700 - this.width;
-      }
-      this.equation = lineFormula(this.start, this.end);
     }
     ctx.moveTo(logicXToRealX(this.start.x), logicYToRealY(this.start.y));
     ctx.lineTo(logicXToRealX(this.end.x), logicYToRealY(this.end.y));
@@ -131,6 +119,24 @@ class Line {
     ctx.closePath();
     ctx.restore();
   }
+  changLocation(offset) {
+    this.start.x += offset.start;
+    this.end.x += offset.end;
+    // 边界检测
+    this.chechBound(100, 700);
+    this.equation = lineFormula(this.start, this.end);
+  }
+  chechBound(leftSide, rightSide) {
+    if (this.start.x <= leftSide) {
+      this.start.x = leftSide;
+      this.end.x = leftSide + this.width;
+    }
+  
+    if (this.end.x >= rightSide) {
+      this.end.x = rightSide;
+      this.start.x = rightSide - this.width;
+    }
+  } 
 }
 
 class NormalSupplyDemand {
@@ -147,11 +153,7 @@ class NormalSupplyDemand {
     this.supplyCurve = new Line({ x: 200, y: 100 }, { x: 600, y: 400 });
   }
   init() {
-    let ctx = this.ctx;
-    createCoordinateSystem(ctx);
-
-    this.demandCurve.create();
-    this.supplyCurve.create();
+    this.repaint();
     
     this.canvas.addEventListener('mousedown', e => this.handleMousedown(e));
     this.canvas.addEventListener('mousemove', e => this.handleMousemove(e));
@@ -175,9 +177,7 @@ class NormalSupplyDemand {
       this.supplyCurve.isSelect = true;
     }
 
-    this.repaintCoordinateSystem();
-    this.demandCurve.create();
-    this.supplyCurve.create();
+    this.repaint();
     this.drawIntersection(calculateIntersection(this.demandCurve.equation, this.supplyCurve.equation));
 
     if (this.supplyCurve.isSelect || this.demandCurve.isSelect) {
@@ -189,15 +189,22 @@ class NormalSupplyDemand {
   handleMousemove(e) {
     if (!this.isMousedown) return
 
-    this.repaintCoordinateSystem();
     let offsetX = realXToLogicX(e.clientX - this.lastX);
     
     let offset = {
       start: offsetX,
       end: offsetX
     };
-    this.demandCurve.create(offset);
-    this.supplyCurve.create(offset);
+    // 找到被选中的曲线并改变其位置
+    if (this.demandCurve.isSelect) {
+      this.demandCurve.changLocation(offset);
+    }
+    if (this.supplyCurve.isSelect) {
+      this.supplyCurve.changLocation(offset);
+    }
+
+    this.repaint();
+
     this.lastX = e.clientX;
     this.drawIntersection(calculateIntersection(this.demandCurve.equation, this.supplyCurve.equation));
   }
@@ -206,8 +213,8 @@ class NormalSupplyDemand {
     this.isMousedown = false;
     this.demandCurve.isSelect = false;
     this.supplyCurve.isSelect = false;
-    this.demandCurve.create();
-    this.supplyCurve.create();
+    this.repaint();
+    this.drawIntersection(calculateIntersection(this.demandCurve.equation, this.supplyCurve.equation));
   }
   drawIntersection(point) {
     const x = logicXToRealX(point.x);
@@ -233,9 +240,11 @@ class NormalSupplyDemand {
     ctx.restore();
   }
   
-  repaintCoordinateSystem() {
+  repaint() {
     this.ctx.clearRect(0, 0, 600, 300);
     createCoordinateSystem(this.ctx);
+    this.demandCurve.create();
+    this.supplyCurve.create();
   }
 }
 
