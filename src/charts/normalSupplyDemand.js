@@ -1,61 +1,47 @@
 
-import { 
-  PADDING, 
-  logicXToRealX, 
-  logicYToRealY, 
-  realXToLogicX, 
-  realYToLogicY, 
-  createCoordinateSystem 
-} from "../coordinateSystem"
+import { CoordinateSystem } from "../coordinateSystem"
 import { distanceOf, lineFormula, calculateIntersection } from '../utils'
-
-const SELECT_RANGE = 25
-
-// usage: new Line({x: ,y: }, {x: , y: })
-class Line {
-  constructor(start, end) {
-    this.start = start
-    this.end = end
-    this.equation = lineFormula(start, end)
-    this.width = end.x - start.x
-    this.isSelect = false
-  }
-  create() {  // ctx通过原型链来拿
-    let ctx = this.ctx
-    ctx.save()
-    ctx.beginPath()
-    ctx.lineWidth = "2"
-    if (this.isSelect) {
-      ctx.strokeStyle = '#ffc107'
+import { Line } from '../elements/line'
+const painter = {
+  ctx: '',
+  methods: [],
+  receive(obj) {
+    if (typeof obj.create !== 'function') {
+      throw new Error('Only function can be registered')
     }
-    ctx.moveTo(logicXToRealX(this.start.x), logicYToRealY(this.start.y))
-    ctx.lineTo(logicXToRealX(this.end.x), logicYToRealY(this.end.y))
-    ctx.stroke()
-    ctx.closePath()
-    ctx.restore()
+    // 尝试一下在这用用bind绑定this值来避免paint调用时的this丢失问题
+    this.methods.push(obj.create.bind(obj))
+  },
+  paint() {
+    this.ctx.clearRect(0, 0, 600, 300)
+    this.methods.forEach(method => method())
   }
-  changLocation(offset) {
-    this.start.x += offset.start
-    this.end.x += offset.end
-    // 边界检测
-    this.chechBound(100, 700)
-    this.equation = lineFormula(this.start, this.end)
-  }
-  chechBound(leftSide, rightSide) {
-    if (this.start.x <= leftSide) {
-      this.start.x = leftSide
-      this.end.x = leftSide + this.width
-    }
-  
-    if (this.end.x >= rightSide) {
-      this.end.x = rightSide
-      this.start.x = rightSide - this.width
-    }
-  } 
 }
 
+let xInterval = 0
+let yInterval = 0
+let PADDING = 20
+function logicXToRealX(x) {
+  return PADDING + xInterval * (Math.floor(x / 100) + x % 100 / 100) 
+}
+
+function logicYToRealY(y) {
+  return canvas.height - PADDING - yInterval * (Math.floor(y / 100) + y % 100 / 100)
+}
+
+function realXToLogicX(x) {
+  return x / xInterval * 100
+}
+
+function realYToLogicY(y) {
+  return y / yInterval * 100
+}
+
+// usage: new Line({x: ,y: }, {x: , y: })
+
+
 class NormalSupplyDemand {
-  constructor() {
+  constructor(options) {
     let canvas = document.getElementById('canvas')
     let ctx = canvas.getContext('2d')
     this.canvas = canvas
@@ -63,12 +49,32 @@ class NormalSupplyDemand {
     this.rect = canvas.getBoundingClientRect()
     this.lastX = 0
     this.isMousedown = false
+    this.SELECT_RANGE = 25
+
+    xInterval = (canvas.width - 2 * PADDING) / (options.xCoordinates.length + .5)
+    yInterval = (canvas.height - 2 * PADDING) / (options.yCoordinates.length + .5)
+
+    CoordinateSystem.prototype.ctx = ctx
+    this.coordinateSystem = new CoordinateSystem({
+      xCoordinates: options.xCoordinates,
+      yCoordinates: options.yCoordinates
+    })
+
     Line.prototype.ctx = ctx
+    Line.prototype.logicXToRealX = logicXToRealX
+    Line.prototype.logicYToRealY = logicYToRealY
+    Line.prototype.realXToLogicX = realXToLogicX
+    Line.prototype.realYToLogicY = realYToLogicY
     this.demandCurve = new Line({ x: 200, y: 400 }, { x: 600, y: 100 })
     this.supplyCurve = new Line({ x: 200, y: 100 }, { x: 600, y: 400 })
+
+    painter.ctx = ctx
+    painter.receive(this.coordinateSystem)
+    painter.receive(this.demandCurve)
+    painter.receive(this.supplyCurve)
   }
   init() {
-    this.repaint()
+    painter.paint()
     
     this.canvas.addEventListener('mousedown', e => this.handleMousedown(e))
     this.canvas.addEventListener('mousemove', e => this.handleMousemove(e))
@@ -83,16 +89,16 @@ class NormalSupplyDemand {
     const supplyCurveDistance = distanceOf(this.supplyCurve.equation, x, y)
 
     // 选中需求曲线
-    if (demandCurveDistance < SELECT_RANGE) {
+    if (demandCurveDistance < this.SELECT_RANGE) {
       this.demandCurve.isSelect = true
     }
     
     // 选中供给曲线
-    if (supplyCurveDistance < SELECT_RANGE && demandCurveDistance >= SELECT_RANGE) {
+    if (supplyCurveDistance < this.SELECT_RANGE && demandCurveDistance >= this.SELECT_RANGE) {
       this.supplyCurve.isSelect = true
     }
 
-    this.repaint()
+    painter.paint()
     this.drawIntersection(calculateIntersection(this.demandCurve.equation, this.supplyCurve.equation))
 
     if (this.supplyCurve.isSelect || this.demandCurve.isSelect) {
@@ -118,7 +124,7 @@ class NormalSupplyDemand {
       this.supplyCurve.changLocation(offset)
     }
 
-    this.repaint()
+    painter.paint()
 
     this.lastX = e.clientX
     this.drawIntersection(calculateIntersection(this.demandCurve.equation, this.supplyCurve.equation))
@@ -128,7 +134,7 @@ class NormalSupplyDemand {
     this.isMousedown = false
     this.demandCurve.isSelect = false
     this.supplyCurve.isSelect = false
-    this.repaint()
+    painter.paint()
     this.drawIntersection(calculateIntersection(this.demandCurve.equation, this.supplyCurve.equation))
   }
   drawIntersection(point) {
@@ -153,13 +159,6 @@ class NormalSupplyDemand {
     ctx.fillText(point.x.toFixed(2), logicXToRealX(point.x + 10), canvas.height - PADDING - 10)
     ctx.fillText(point.y.toFixed(2), PADDING, y)
     ctx.restore()
-  }
-  
-  repaint() {
-    this.ctx.clearRect(0, 0, 600, 300)
-    createCoordinateSystem(this.ctx)
-    this.demandCurve.create()
-    this.supplyCurve.create()
   }
 }
 

@@ -1,79 +1,70 @@
-const PADDING = 20;
-const xCoordinates = [100, 200, 300, 400, 500, 600, 700];
-const yCoordinates = [100, 200, 300, 400];
-
-const xAxisWidth = canvas.width - 2 * PADDING;
-const yAxisHeight = canvas.height - 2 * PADDING;
-
-const xInterval = xAxisWidth / (xCoordinates.length + .5);
-const yInterval = yAxisHeight / (yCoordinates.length + .5);
-
-function createXAxis(ctx) {
-  ctx.beginPath();
-  ctx.moveTo(PADDING, canvas.height - PADDING);
-  ctx.lineTo(PADDING + xAxisWidth, canvas.height - PADDING);
-  ctx.closePath();
-  ctx.stroke();
-
-  for (let i = 0; i < xCoordinates.length; i++) {
-    const x = xInterval * (i + 1) + PADDING;
-    const y = canvas.height - PADDING;
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x, y - 5);
-    ctx.stroke();
-    ctx.fillText(xCoordinates[i], x - 10, y + 15);
-    ctx.closePath();
-    ctx.restore();
+const PADDING$1 = 20;
+// canvas直接从页面上拿
+class CoordinateSystem {
+  constructor({ xCoordinates, yCoordinates }) {
+    this.PADDING = 20;
+    this.xCoordinates = xCoordinates;
+    this.yCoordinates = yCoordinates;
+    this.xAxisWidth = canvas.width - 2 * PADDING$1;
+    this.yAxisHeight = canvas.height - 2 * PADDING$1;
+    this.xInterval = this.xAxisWidth / (xCoordinates.length + .5);
+    this.yInterval = this.yAxisHeight / (yCoordinates.length + .5);
   }
-}
+  createXAxis() {
+    let ctx = this.ctx; // ctx通过原型去拿
+    const PADDING = this.PADDING;
 
-function createYAxis(ctx) {
-  ctx.beginPath();
-  ctx.moveTo(PADDING, canvas.height - PADDING);
-  ctx.lineTo(PADDING, PADDING);
-  ctx.closePath();
-  ctx.stroke();
-
-  for (let i = 0; i < yCoordinates.length; i++) {
-    const x = PADDING;
-    const y = canvas.height - PADDING - yInterval * (i + 1);
-    ctx.save();
     ctx.beginPath();
-    ctx.setLineDash([4,2]);
-    ctx.strokeStyle = "#dedede";
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + xAxisWidth, y);
+    ctx.moveTo(PADDING, canvas.height - PADDING);
+    ctx.lineTo(PADDING + this.xAxisWidth, canvas.height - PADDING);
+    ctx.closePath();
     ctx.stroke();
-    ctx.fillText(yCoordinates[i], x - 20, y + 5);
-    ctx.closePath();
-    ctx.closePath();
-    ctx.restore();
+  
+    for (let i = 0; i < this.xCoordinates.length; i++) {
+      const x = this.xInterval * (i + 1) + PADDING;
+      const y = canvas.height - PADDING;
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x, y - 5);
+      ctx.stroke();
+      ctx.fillText(this.xCoordinates[i], x - 10, y + 15);
+      ctx.closePath();
+      ctx.restore();
+    }
   }
-}
-
-function createCoordinateSystem(ctx) {
-  createXAxis(ctx);
-  createYAxis(ctx);
-
-  ctx.fillText(0, PADDING - 12, canvas.height - PADDING + 12); // 原点坐标
-}
-
-function logicXToRealX(x) {
-  return PADDING + xInterval * (Math.floor(x / 100) + x % 100 / 100) 
-}
-
-function logicYToRealY(y) {
-  return canvas.height - PADDING - yInterval * (Math.floor(y / 100) + y % 100 / 100)
-}
-
-function realXToLogicX(x) {
-  return x / xInterval * 100
-}
-
-function realYToLogicY(y) {
-  return y / yInterval * 100
+  createYAxis() {
+    let ctx = this.ctx; // ctx通过原型去拿
+    const PADDING = this.PADDING;
+    ctx.beginPath();
+    ctx.moveTo(PADDING, canvas.height - PADDING);
+    ctx.lineTo(PADDING, PADDING);
+    ctx.closePath();
+    ctx.stroke();
+  
+    for (let i = 0; i < this.yCoordinates.length; i++) {
+      const x = PADDING;
+      const y = canvas.height - PADDING - this.yInterval * (i + 1);
+      ctx.save();
+      ctx.beginPath();
+      ctx.setLineDash([4,2]);
+      ctx.strokeStyle = "#dedede";
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + this.xAxisWidth, y);
+      ctx.stroke();
+      ctx.fillText(this.yCoordinates[i], x - 20, y + 5);
+      ctx.closePath();
+      ctx.closePath();
+      ctx.restore();
+    }
+  }
+  create() {
+    let ctx = this.ctx; // ctx通过原型去拿
+    this.createXAxis();
+    this.createYAxis();
+  
+    ctx.fillText(0, this.PADDING - 12, canvas.height - this.PADDING + 12); // 原点坐标
+  }
 }
 
 function distanceOf(curve, x, y) {
@@ -94,9 +85,6 @@ function calculateIntersection(line1, line2) {
   return {x, y}
 }
 
-const SELECT_RANGE = 25;
-
-// usage: new Line({x: ,y: }, {x: , y: })
 class Line {
   constructor(start, end) {
     this.start = start;
@@ -113,8 +101,8 @@ class Line {
     if (this.isSelect) {
       ctx.strokeStyle = '#ffc107';
     }
-    ctx.moveTo(logicXToRealX(this.start.x), logicYToRealY(this.start.y));
-    ctx.lineTo(logicXToRealX(this.end.x), logicYToRealY(this.end.y));
+    ctx.moveTo(this.logicXToRealX(this.start.x), this.logicYToRealY(this.start.y));
+    ctx.lineTo(this.logicXToRealX(this.end.x), this.logicYToRealY(this.end.y));
     ctx.stroke();
     ctx.closePath();
     ctx.restore();
@@ -139,8 +127,46 @@ class Line {
   } 
 }
 
+const painter = {
+  ctx: '',
+  methods: [],
+  receive(obj) {
+    if (typeof obj.create !== 'function') {
+      throw new Error('Only function can be registered')
+    }
+    // 尝试一下在这用用bind绑定this值来避免paint调用时的this丢失问题
+    this.methods.push(obj.create.bind(obj));
+  },
+  paint() {
+    this.ctx.clearRect(0, 0, 600, 300);
+    this.methods.forEach(method => method());
+  }
+};
+
+let xInterval = 0;
+let yInterval = 0;
+let PADDING = 20;
+function logicXToRealX(x) {
+  return PADDING + xInterval * (Math.floor(x / 100) + x % 100 / 100) 
+}
+
+function logicYToRealY(y) {
+  return canvas.height - PADDING - yInterval * (Math.floor(y / 100) + y % 100 / 100)
+}
+
+function realXToLogicX(x) {
+  return x / xInterval * 100
+}
+
+function realYToLogicY(y) {
+  return y / yInterval * 100
+}
+
+// usage: new Line({x: ,y: }, {x: , y: })
+
+
 class NormalSupplyDemand {
-  constructor() {
+  constructor(options) {
     let canvas = document.getElementById('canvas');
     let ctx = canvas.getContext('2d');
     this.canvas = canvas;
@@ -148,12 +174,32 @@ class NormalSupplyDemand {
     this.rect = canvas.getBoundingClientRect();
     this.lastX = 0;
     this.isMousedown = false;
+    this.SELECT_RANGE = 25;
+
+    xInterval = (canvas.width - 2 * PADDING) / (options.xCoordinates.length + .5);
+    yInterval = (canvas.height - 2 * PADDING) / (options.yCoordinates.length + .5);
+
+    CoordinateSystem.prototype.ctx = ctx;
+    this.coordinateSystem = new CoordinateSystem({
+      xCoordinates: options.xCoordinates,
+      yCoordinates: options.yCoordinates
+    });
+
     Line.prototype.ctx = ctx;
+    Line.prototype.logicXToRealX = logicXToRealX;
+    Line.prototype.logicYToRealY = logicYToRealY;
+    Line.prototype.realXToLogicX = realXToLogicX;
+    Line.prototype.realYToLogicY = realYToLogicY;
     this.demandCurve = new Line({ x: 200, y: 400 }, { x: 600, y: 100 });
     this.supplyCurve = new Line({ x: 200, y: 100 }, { x: 600, y: 400 });
+
+    painter.ctx = ctx;
+    painter.receive(this.coordinateSystem);
+    painter.receive(this.demandCurve);
+    painter.receive(this.supplyCurve);
   }
   init() {
-    this.repaint();
+    painter.paint();
     
     this.canvas.addEventListener('mousedown', e => this.handleMousedown(e));
     this.canvas.addEventListener('mousemove', e => this.handleMousemove(e));
@@ -168,16 +214,16 @@ class NormalSupplyDemand {
     const supplyCurveDistance = distanceOf(this.supplyCurve.equation, x, y);
 
     // 选中需求曲线
-    if (demandCurveDistance < SELECT_RANGE) {
+    if (demandCurveDistance < this.SELECT_RANGE) {
       this.demandCurve.isSelect = true;
     }
     
     // 选中供给曲线
-    if (supplyCurveDistance < SELECT_RANGE && demandCurveDistance >= SELECT_RANGE) {
+    if (supplyCurveDistance < this.SELECT_RANGE && demandCurveDistance >= this.SELECT_RANGE) {
       this.supplyCurve.isSelect = true;
     }
 
-    this.repaint();
+    painter.paint();
     this.drawIntersection(calculateIntersection(this.demandCurve.equation, this.supplyCurve.equation));
 
     if (this.supplyCurve.isSelect || this.demandCurve.isSelect) {
@@ -203,7 +249,7 @@ class NormalSupplyDemand {
       this.supplyCurve.changLocation(offset);
     }
 
-    this.repaint();
+    painter.paint();
 
     this.lastX = e.clientX;
     this.drawIntersection(calculateIntersection(this.demandCurve.equation, this.supplyCurve.equation));
@@ -213,7 +259,7 @@ class NormalSupplyDemand {
     this.isMousedown = false;
     this.demandCurve.isSelect = false;
     this.supplyCurve.isSelect = false;
-    this.repaint();
+    painter.paint();
     this.drawIntersection(calculateIntersection(this.demandCurve.equation, this.supplyCurve.equation));
   }
   drawIntersection(point) {
@@ -239,13 +285,9 @@ class NormalSupplyDemand {
     ctx.fillText(point.y.toFixed(2), PADDING, y);
     ctx.restore();
   }
-  
-  repaint() {
-    this.ctx.clearRect(0, 0, 600, 300);
-    createCoordinateSystem(this.ctx);
-    this.demandCurve.create();
-    this.supplyCurve.create();
-  }
 }
 
-new NormalSupplyDemand().init();
+new NormalSupplyDemand({
+  xCoordinates: [100, 200, 300, 400, 500, 600, 700],
+  yCoordinates: [100, 200, 300, 400],
+}).init();
