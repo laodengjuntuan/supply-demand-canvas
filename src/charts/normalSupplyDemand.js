@@ -1,6 +1,6 @@
 
 import { CoordinateSystem } from "../coordinateSystem"
-import { distanceOf, lineFormula, calculateIntersection } from '../utils'
+import { distanceOf, calculateIntersection } from '../utils'
 import { Line } from '../elements/line'
 const painter = {
   ctx: '',
@@ -18,27 +18,31 @@ const painter = {
   }
 }
 
-let xInterval = 0
-let yInterval = 0
-let PADDING = 20
-function logicXToRealX(x) {
-  return PADDING + xInterval * (Math.floor(x / 100) + x % 100 / 100) 
-}
-
-function logicYToRealY(y) {
-  return canvas.height - PADDING - yInterval * (Math.floor(y / 100) + y % 100 / 100)
-}
-
-function realXToLogicX(x) {
-  return x / xInterval * 100
-}
-
-function realYToLogicY(y) {
-  return y / yInterval * 100
-}
-
 // usage: new Line({x: ,y: }, {x: , y: })
+class Service {
+  constructor(xInterval, yInterval, canvas) {
+    this.xInterval = xInterval
+    this.yInterval = yInterval
+    this.PADDING = 20
+    this.canvas = canvas
+  }
 
+  logicXToRealX(x) {
+    return this.PADDING + this.xInterval * (Math.floor(x / 100) + x % 100 / 100) 
+  }
+  
+  logicYToRealY(y) {
+    return canvas.height - this.PADDING - this.yInterval * (Math.floor(y / 100) + y % 100 / 100)
+  }
+  
+  realXToLogicX(x) {
+    return x / this.xInterval * 100
+  }
+  
+  realYToLogicY(y) {
+    return y / this.yInterval * 100
+  }
+}
 
 class NormalSupplyDemand {
   constructor(options) {
@@ -50,9 +54,13 @@ class NormalSupplyDemand {
     this.lastX = 0
     this.isMousedown = false
     this.SELECT_RANGE = 25
-
-    xInterval = (canvas.width - 2 * PADDING) / (options.xCoordinates.length + .5)
-    yInterval = (canvas.height - 2 * PADDING) / (options.yCoordinates.length + .5)
+    this.PADDING = 20
+    
+    this.service = new Service(
+      (canvas.width - 2 * this.PADDING) / (options.xCoordinates.length + .5), 
+      (canvas.height - 2 * this.PADDING) / (options.yCoordinates.length + .5), 
+      canvas
+    )
 
     CoordinateSystem.prototype.ctx = ctx
     this.coordinateSystem = new CoordinateSystem({
@@ -61,12 +69,8 @@ class NormalSupplyDemand {
     })
 
     Line.prototype.ctx = ctx
-    Line.prototype.logicXToRealX = logicXToRealX
-    Line.prototype.logicYToRealY = logicYToRealY
-    Line.prototype.realXToLogicX = realXToLogicX
-    Line.prototype.realYToLogicY = realYToLogicY
-    this.demandCurve = new Line({ x: 200, y: 400 }, { x: 600, y: 100 })
-    this.supplyCurve = new Line({ x: 200, y: 100 }, { x: 600, y: 400 })
+    this.demandCurve = new Line({ x: 200, y: 400 }, { x: 600, y: 100 }, this.service)
+    this.supplyCurve = new Line({ x: 200, y: 100 }, { x: 600, y: 400 }, this.service)
 
     painter.ctx = ctx
     painter.receive(this.coordinateSystem)
@@ -83,8 +87,8 @@ class NormalSupplyDemand {
   }
   handleMousedown(e) {
     // 由于鼠标的坐标位置并不是从canvas的左上角为起点开始计算的，而是从页面的左上角，因此计算时还要考虑到canvas画布位于页面中的位置。
-    let x = realXToLogicX(e.clientX - this.rect.left - PADDING)
-    let y = realYToLogicY(canvas.height + this.rect.top - PADDING - e.clientY)
+    let x = this.service.realXToLogicX(e.clientX - this.rect.left - this.PADDING)
+    let y = this.service.realYToLogicY(canvas.height + this.rect.top - this.PADDING - e.clientY)
     const demandCurveDistance = distanceOf(this.demandCurve.equation, x, y)
     const supplyCurveDistance = distanceOf(this.supplyCurve.equation, x, y)
 
@@ -110,7 +114,7 @@ class NormalSupplyDemand {
   handleMousemove(e) {
     if (!this.isMousedown) return
 
-    let offsetX = realXToLogicX(e.clientX - this.lastX)
+    let offsetX = this.service.realXToLogicX(e.clientX - this.lastX)
     
     let offset = {
       start: offsetX,
@@ -138,26 +142,26 @@ class NormalSupplyDemand {
     this.drawIntersection(calculateIntersection(this.demandCurve.equation, this.supplyCurve.equation))
   }
   drawIntersection(point) {
-    const x = logicXToRealX(point.x)
-    const y = logicYToRealY(point.y)
+    const x = this.service.logicXToRealX(point.x)
+    const y = this.service.logicYToRealY(point.y)
     let ctx = this.ctx
     ctx.save()
     ctx.beginPath()
     ctx.arc(x, y, 5, 0, Math.PI * 2, true)
     ctx.fill()
     ctx.moveTo(x, y)
-    ctx.lineTo(x, canvas.height - PADDING)
+    ctx.lineTo(x, canvas.height - this.PADDING)
   
     ctx.moveTo(x, y)
-    ctx.lineTo(PADDING, y)
+    ctx.lineTo(this.PADDING, y)
   
     ctx.strokeStyle = "#dedede"
     ctx.setLineDash([5, 5])
     ctx.stroke()
     ctx.closePath()
   
-    ctx.fillText(point.x.toFixed(2), logicXToRealX(point.x + 10), canvas.height - PADDING - 10)
-    ctx.fillText(point.y.toFixed(2), PADDING, y)
+    ctx.fillText(point.x.toFixed(2), this.service.logicXToRealX(point.x + 10), canvas.height - this.PADDING - 10)
+    ctx.fillText(point.y.toFixed(2), this.PADDING, y)
     ctx.restore()
   }
 }

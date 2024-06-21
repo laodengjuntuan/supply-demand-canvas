@@ -1,11 +1,12 @@
 import { lineFormula } from '../utils'
 class Line {
-  constructor(start, end) {
+  constructor(start, end, service) {
     this.start = start
     this.end = end
     this.equation = lineFormula(start, end)
     this.width = end.x - start.x
     this.isSelect = false
+    this.service = service
   }
   create() {  // ctx通过原型链来拿
     let ctx = this.ctx
@@ -15,8 +16,8 @@ class Line {
     if (this.isSelect) {
       ctx.strokeStyle = '#ffc107'
     }
-    ctx.moveTo(this.logicXToRealX(this.start.x), this.logicYToRealY(this.start.y))
-    ctx.lineTo(this.logicXToRealX(this.end.x), this.logicYToRealY(this.end.y))
+    ctx.moveTo(this.service.logicXToRealX(this.start.x), this.service.logicYToRealY(this.start.y))
+    ctx.lineTo(this.service.logicXToRealX(this.end.x), this.service.logicYToRealY(this.end.y))
     ctx.stroke()
     ctx.closePath()
     ctx.restore()
